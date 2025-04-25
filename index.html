@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+ <html lang="en">
+ <head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>National Museum of Fine Arts - Virtual Tour</title>
+ <style>
+ body {
+ margin: 0;
+ overflow: hidden;
+ font-family: 'EB Garamond', serif; /* Default museum-like font */
+ height: 100vh;
+ background-color: #f0f0f0; /* Background for body */
+ }
+ #exterior-container {
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ height: 100vh;
+ text-align: center;
+ background-color: #f0f0f0;
+ transition: opacity 1s ease-in-out;
+ }
+ #exterior-image {
+ max-width: 80%;
+ height: auto;
+ border-radius: 8px;
+ box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.2);
+ margin-bottom: 20px;
+ /* Fallback image */
+ content: url('https://placehold.co/600x400/cccccc/ffffff?text=Museum+Exterior');
+ }
+ #exterior-image[src] { /* Only apply if src is valid */
+ content: attr(src); /* Use the actual src if provided */
+ }
+ #exterior-container button {
+ padding: 15px 30px;
+ font-size: 1.1em;
+ background-color: #007bff;
+ color: white;
+ border: none;
+ border-radius: 5px;
+ cursor: pointer;
+ transition: background-color 0.3s ease;
+ }
+ #exterior-container button:hover {
+ background-color: #0056b3;
+ }
+ #pano-container {
+ width: 100%;
+ height: 100vh;
+ position: relative;
+ display: none; /* Hidden by default */
+ overflow: hidden;
+ background-color: #333; /* Background while image loads */
+ }
+ #panorama {
+ display: block;
+ width: 100%;
+ height: 100%;
+ object-fit: cover;
+ transform-origin: center center;
+ transform: scale(1);
+ transition: transform 1.5s ease-in-out, opacity 0.5s ease-in-out; /* Added opacity transition */
+ /* Fallback styling */
+ background-color: #eee;
+ background-image: url('https://placehold.co/1920x1080/eeeeee/999999?text=Loading+View...');
+ background-size: cover;
+ background-position: center;
+ opacity: 1; /* Start fully visible */
+ }
+ #panorama[src] { /* Hide placeholder text when image loads */
+ background-image: none;
+ }
+ /* --- Animation Classes --- */
+ #panorama.pano-exit-fade {
+ opacity: 0;
+ transition: opacity 0.5s ease-in-out;
+ }
+ #panorama.pano-enter-fade {
+ opacity: 0; /* Start hidden */
+ /* Opacity transition is already defined */
+ }
+ #panorama.pano-exit-slide-left {
+ opacity: 0;
+ transform: translateX(-50px); /* Slide slightly left */
+ transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+ }
+ #panorama.pano-exit-slide-right {
+ opacity: 0;
+ transform: translateX(50px); /* Slide slightly right */
+ transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+ }
+ #panorama.pano-enter-slide-left {
+ opacity: 0;
+ transform: translateX(50px); /* Enter from right */
+ /* Transitions defined on base #panorama */
+ }
+ #panorama.pano-enter-slide-right {
+ opacity: 0;
+ transform: translateX(-50px); /* Enter from left */
+ /* Transitions defined on base #panorama */
+ }
+ /* End Animation Classes --- */
+ #hotspots {
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ pointer-events: none; /* Allows clicks to pass through unless hitting a hotspot */
+ opacity: 1;
+ transition: opacity 0.5s ease-in-out;
+ }
+ #hotspots.hidden {
+ opacity: 0;
+ pointer-events: none;
+ }
+ .hotspot {
+ position: absolute;
+ width: 45px; /* Larger size for navigation */
+ height: 45px; /* Larger size for navigation */
+ border-radius: 50%;
+ cursor: pointer;
+ pointer-events: auto; /* Make hotspots clickable */
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ font-size: 1.8em; /* Larger font size for navigation */
+ font-weight: bold;
+ z-index: 10;
+ opacity: 0.8;
+ /* Added transform for hover effect */
+ color: white; /* Default color */
+ background-color: rgba(0,0,0,0.6); /* Default background */
+ border: 2px solid rgba(255, 255, 255, 0.8); /* More prominent border */
+ box-shadow: 0 0 8px rgba(255, 255, 255, 0.5); /* Glow effect */
+
+ /* Animation */
+ transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+ animation: pulse 2s infinite ease-in-out; /* Pulse animation */
+ }
+
+ @keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 8px rgba(255, 255, 255, 0.5); }
+    50% { transform: scale(1.05); box-shadow: 0 0 15px rgba(255, 255, 255, 0.8); }
+    100% { transform: scale(1); box-shadow: 0 0 8px rgba(255, 255, 255, 0.5); }
+ }
+
+
+ .hotspot:hover {
+ opacity: 1;
+ transform: scale(1.1); /* Slight scale up on hover */
+ background-color: rgba(0,0,0,0.8); /* Darker background on hover */
+ animation: none; /* Stop pulsing on hover */
+ }
+ /* Specific styling for info hotspots */
+ .hotspot.info {
+ width: 35px; /* Slightly smaller */
+ height: 35px;
+ font-family: 'Times New Roman', serif; /* More classic font for info */
+ font-style: italic;
+ font-size: 1.4em; /* Adjust size */
+ background-color: rgba(0, 0, 139, 0.7); /* Dark blue background */
+ color: white;
+ border: 2px solid rgba(173, 216, 230, 0.8); /* Light blue border */
+ box-shadow: 0 0 8px rgba(173, 216, 230, 0.5); /* Light blue glow */
+ animation: pulse-blue 2s infinite ease-in-out; /* Blue pulse */
+ }
+
+ @keyframes pulse-blue {
+    0% { transform: scale(1); box-shadow: 0 0 8px rgba(173, 216, 230, 0.5); }
+    50% { transform: scale(1.05); box-shadow: 0 0 15px rgba(173, 216, 230, 0.8); }
+    100% { transform: scale(1); box-shadow: 0 0 8px rgba(173, 216, 230, 0.5); }
+ }
+
+ .hotspot.info:hover {
+ background-color: rgba(0, 0, 139, 1); /* Dark blue background */
+ border-color: rgba(173, 216, 230, 1);
+ animation: none; /* Stop pulsing on hover */
+ }
+ /* Specific styling for navigation hotspots */
+ .hotspot.nav {
+ background-color: rgba(0, 100, 0, 0.7); /* Dark green background */
+ color: white;
+ font-size: 1.5em; /* Adjust arrow size if needed */
+ border: 2px solid rgba(144, 238, 144, 0.8); /* Light green border */
+ box-shadow: 0 0 8px rgba(144, 238, 144, 0.5); /* Light green glow */
+ animation: pulse-green 2s infinite ease-in-out; /* Green pulse */
+ }
+
+ @keyframes pulse-green {
+    0% { transform: scale(1); box-shadow: 0 0 8px rgba(144, 238, 144, 0.5); }
+    50% { transform: scale(1.05); box-shadow: 0 0 15px rgba(144, 238, 144, 0.8); }
+    100% { transform: scale(1); box-shadow: 0 0 8px rgba(144, 238, 144, 0.5); }
+ }
+
+
+ .hotspot.nav:hover {
+ background-color: rgba(0, 100, 0, 1); /* Dark green background */
+ border-color: rgba(144, 238, 144, 1);
+ animation: none; /* Stop pulsing on hover */
+ }
+ .hotspot-label {
+ position: absolute;
+ background-color: rgba(0,0,0,0.8);
+ color: white;
+ padding: 8px 12px;
+ border-radius: 5px;
+ font-size: 0.9em; /* Slightly smaller label */
+ font-family: sans-serif; /* Use a more readable font for labels */
+ font-weight: normal;
+ white-space: nowrap;
+ bottom: -55px; /* Adjust position relative to larger hotspot */
+ left: 50%;
+ transform: translateX(-50%);
+ opacity: 0;
+ transition: opacity 0.3s ease;
+ pointer-events: none; /* Label itself isn't clickable */
+ z-index: 11; /* Ensure label is above hotspot */
+ }
+ .hotspot:hover .hotspot-label {
+ opacity: 1;
+ }
+ #info-panel {
+ position: fixed;
+ top: 50%;
+ left: 50%;
+ transform: translate(-50%,-50%);
+ background-color: rgba(255, 255, 255, 0.98); /* More opaque white */
+ padding: 30px; /* Increased padding */
+ border-radius: 12px; /* Slightly more rounded corners */
+ box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); /* More prominent shadow */
+ z-index: 30;
+ display: none;
+ text-align: left; /* Align text left for readability */
+ max-width: 700px; /* Increased max width */
+ width: 95%; /* Responsive width */
+ max-height: 90%; /* Increased max height */
+ overflow-y: auto; /* Allow scrolling if content overflows */
+ font-family: 'EB Garamond', serif;
+ }
+ #info-panel h3 {
+ margin-top: 0;
+ margin-bottom: 20px; /* Increased margin */
+ font-size: 1.8em; /* Larger title font size */
+ color: #1a1a1a; /* Darker title color */
+ text-align: center;
+ border-bottom: 1px solid #eee; /* Subtle separator */
+ padding-bottom: 15px;
+ }
+ #info-panel p {
+ font-size: 1.2em; /* Slightly larger description font size */
+ line-height: 1.7; /* Improved line spacing */
+ color: #333; /* Darker description color */
+ margin-bottom: 25px; /* Increased margin */
+ }
+ #info-panel #info-image {
+ max-width: 100%;
+ height: auto;
+ margin-bottom: 20px; /* Increased margin */
+ border-radius: 8px; /* More rounded corners */
+ display: block; /* Center image */
+ margin-left: auto;
+ margin-right: auto;
+ box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Added image shadow */
+ }
+ #info-panel #info-images-multi {
+ display: flex;
+ overflow-y: auto; /* Enable vertical scrolling */
+ overflow-x: hidden; /* Hide horizontal scrollbar */
+ flex-wrap: wrap; /* Allow images to wrap */
+ max-height: 300px; /* Increased max height for scrollable area */
+ justify-content: center; /* Keep images centered */
+ gap: 15px; /* Increased gap between images */
+ margin-bottom: 20px; /* Increased margin */
+ padding-right: 15px; /* Add padding for vertical scrollbar */
+ }
+ #info-panel #info-images-multi img {
+ max-width: 48%; /* Adjusted max-width to fit two images with gap */
+ height: auto;
+ border-radius: 8px; /* More rounded corners */
+ box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Added image shadow */
+ transition: transform 0.3s ease; /* Added transform transition for hover */
+ }
+
+ #info-panel #info-images-multi img:hover {
+     transform: scale(1.05); /* Slight scale up on hover */
+ }
+
+ #info-panel #info-pdf-embed {
+    width: 100%; /* Make the iframe take full width */
+    height: 600px; /* Further Increased height for the PDF viewer (adjust as needed) */
+    border: 1px solid #ccc; /* Subtle border */
+    margin-bottom: 20px; /* Increased margin */
+    border-radius: 8px; /* Rounded corners */
+ }
+
+ #info-panel button {
+ display: block; /* Make button block level */
+ margin: 20px auto 0 auto; /* Center button */
+ padding: 12px 25px; /* Increased padding */
+ font-size: 1.1em; /* Slightly larger font */
+ background-color: #555;
+ color: white;
+ border: none;
+ border-radius: 6px; /* Slightly more rounded corners */
+ cursor: pointer;
+ transition: background-color 0.3s ease, transform 0.2s ease; /* Added transform for hover */
+ font-family: 'EB Garamond', serif;
+ }
+ #info-panel button:hover {
+ background-color: #333;
+ transform: translateY(-2px); /* Slight lift on hover */
+ }
+ #navigation-bar {
+ position: fixed;
+ bottom: 0;
+ left: 0;
+ width: 100%;
+ padding: 10px;
+ background-color: rgba(30, 30, 30, 0.95); /* Darker, more opaque background */
+ border-top: 1px solid #555;
+ text-align: center;
+ z-index: 20;
+ display: none; /* Hidden initially */
+ /* Allow horizontal scrolling on small screens */
+ overflow-x: auto;
+ white-space: nowrap;
+ box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3); /* Shadow at the top */
+ }
+ #navigation-bar button {
+ padding: 10px 15px;
+ margin: 0 8px; /* Increased margin between buttons */
+ cursor: pointer;
+ border: none;
+ border-radius: 5px;
+ background-color: #ddd;
+ color: #333;
+ font-size: 1em;
+ font-family: 'EB Garamond', serif;
+ transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease; /* Added transform for hover */
+ /* Prevent wrapping */
+ display: inline-block;
+ vertical-align: top;
+ position: relative; /* Needed for pseudo-element */
+ overflow: visible; /* Allow thumbnail to be visible */
+ }
+
+ #navigation-bar button:hover {
+  background-color: #007bff; /* Highlight on hover */
+  color: white;
+  transform: translateY(-2px); /* Slight lift on hover */
+ }
+
+ #navigation-bar button.active-nav { /* Style for the current view button */
+ background-color: #0056b3;
+ color: white;
+ font-weight: bold;
+ transform: translateY(-2px); /* Lift active button */
+ }
+
+ /* Thumbnail preview on hover for navigation buttons */
+ #navigation-bar button::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 10px); /* Position above the button with spacing */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px; /* Adjust thumbnail width */
+  height: 75px; /* Adjust thumbnail height */
+  background-size: cover;
+  background-position: center;
+  border-radius: 5px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: bottom 0.3s ease-out, opacity 0.3s ease-out;
+  z-index: 1; /* Ensure it's above other elements */
+  pointer-events: none; /* Make the thumbnail not clickable */
+  /* Hide the pseudo-element if no background image is set */
+    display: var(--has-thumbnail, none);
+ }
+
+ #navigation-bar button:hover::before {
+  bottom: calc(100% + 15px); /* Move up slightly more on hover */
+  opacity: 1;
+  transition: bottom 0.3s ease-in, opacity 0.3s ease-in;
+ }
+
+ /* Define specific background images for each button using the 'data-thumbnail' attribute */
+ /* Added --has-thumbnail variable */
+ #navigation-bar button[data-thumbnail="spol.jpg"]::before { background-image: url('spol_thumb.jpg'); --has-thumbnail: block; }
+ #navigation-bar button[data-thumbnail="old.jpg"]::before { background-image: url('old_senate_thumb.jpg'); --has-thumbnail: block; }
+ #navigation-bar button[data-thumbnail="gal3.jpg"]::before { background-image: url('gal3_thumb.jpg'); --has-thumbnail: block; }
+ #navigation-bar button[data-thumbnail="gal6.jpg"]::before { background-image: url('gal6_thumb.jpg'); --has-thumbnail: block; }
+ #navigation-bar button[data-thumbnail="gal8.jpg"]::before { background-image: url('gal8_thumb.jpg'); --has-thumbnail: block; }
+ #navigation-bar button[data-thumbnail="gal12.jpg"]::before { background-image: url('gal12_thumb.jpg'); --has-thumbnail: block; }
+ #navigation-bar button[data-thumbnail="gal16.jpg"]::before { background-image: url('gal16_thumb.jpg'); --has-thumbnail: block; }
+ #navigation-bar button[data-thumbnail="gal22.jpg"]::before { background-image: url('gal22_thumb.jpg'); --has-thumbnail: block; }
+
+
+ </style>
+ <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond&display=swap">
+ </head>
+ <body>
+
+ <video src="song.mp4" autoplay loop style="display: none;"></video>
+
+ <div id="exterior-container">
+ <img id="exterior-image" src="ext.jpg" alt="Exterior of the National Museum of Fine Arts" onerror="this.onerror=null; this.style.display='none';">
+ <button onclick="startVirtualTour()">Enter Virtual Tour</button>
+ </div>
+ <div id="pano-container">
+ <img id="panorama" src="spol.jpg" alt="Interior View" onerror="this.onerror=null; this.style.display='none';">
+ <div id="hotspots"></div>
+ <div id="navigation-bar">
+ <button data-view="spol.jpg" data-thumbnail="spol.jpg" onclick="handleNavClick('spol.jpg', getHotspotsSpolariumHall)">Spoliarium Hall</button>
+ <button data-view="old.jpg" data-thumbnail="old.jpg" onclick="handleNavClick('old.jpg', getHotspotsOldSenate)">Old Senate Hall</button>
+ <button data-view="gal3.jpg" data-thumbnail="gal3.jpg" onclick="handleNavClick('gal3.jpg', getHotspotsGallery3Front)">Gallery 3 (Front)</button>
+ <button data-view="gal3l.jpg" data-thumbnail="gal3.jpg" onclick="handleNavClick('gal3l.jpg', getHotspotsGallery3Left)">Gallery 3 (Left)</button>
+ <button data-view="gal3r.jpg" data-thumbnail="gal3.jpg" onclick="handleNavClick('gal3r.jpg', getHotspotsGallery3Right)">Gallery 3 (Right)</button>
+ <button data-view="gal6.jpg" data-thumbnail="gal6.jpg" onclick="handleNavClick('gal6.jpg', getHotspotsGallery6)">Gallery 6</button>
+ <button data-view="gal8.jpg" data-thumbnail="gal8.jpg" onclick="handleNavClick('gal8.jpg', getHotspotsGallery8)">Gallery 8</button>
+ <button data-view="gal12.jpg" data-thumbnail="gal12.jpg" onclick="handleNavClick('gal12.jpg', getHotspotsGallery12)">Gallery 12</button>
+ <button data-view="gal16.jpg" data-thumbnail="gal16.jpg" onclick="handleNavClick('gal16.jpg', getHotspotsGallery16)">Gallery 16</button>
+ <button data-view="gal22.jpg" data-thumbnail="gal22.jpg" onclick="handleNavClick('gal22.jpg', getHotspotsGallery22)">Gallery 22</button>
+ </div>
+ </div>
+ <div id="info-panel">
+ <h3 id="info-title"></h3>
+ <img id="info-image" src="" alt="Artwork Image" style="display: none;" onerror="this.onerror=null; this.style.display='none';">
+ <div id="info-images-multi" style="display: none;"></div>
+ <iframe id="info-pdf-embed" style="display: none;"></iframe>
+ <p id="info-description"></p>
+ <button onclick="closeInfoPanel()">Close</button>
+ </div>
+ <script>
+ // --- DOM Element References ---
+ const exteriorContainer = document.getElementById('exterior-container');
+ const panoContainer = document.getElementById('pano-container');
+ const panorama = document.getElementById('panorama');
+ const hotspotsContainer = document.getElementById('hotspots');
+ const infoPanel = document.getElementById('info-panel');
+ const infoTitleElement = document.getElementById('info-title');
+ const infoImageElement = document.getElementById('info-image');
+ const infoImagesMultiContainer = document.getElementById('info-images-multi');
+ const infoPdfEmbed = document.getElementById('info-pdf-embed'); // Reference the new iframe
+ const infoDescriptionElement = document.getElementById('info-description');
+ const navigationBar = document.getElementById('navigation-bar');
+ // Re-query navButtons after adding new ones dynamically (or ensure they are added before this script runs)
+ const navButtons = navigationBar.querySelectorAll('button[data-view]');
+ // --- State Variables ---
+ let currentHotspots = []; // Holds hotspots for the current view
+ let historyStack = []; // Tracks navigation history for the back button
+ let isTransitioning = false; // Flag to prevent multiple transitions at once
+ const TRANSITION_DURATION = 500; // ms, matches CSS opacity transition
+ // --- Core Functions ---
+ /**
+ * @function startVirtualTour
+ * @description Hides the exterior view, shows the panorama view, and loads the initial panorama.
+ */
+ function startVirtualTour() {
+ console.log("startVirtualTour called"); // Log start
+ if (isTransitioning) {
+ console.log("startVirtualTour: Transition already in progress, returning."); // Log if transitioning
+ return;
+ }
+ isTransitioning = true;
+ historyStack = []; // Clear history when starting
+ exteriorContainer.style.opacity = '0'; // Fade out exterior
+ console.log("startVirtualTour: Fading out exterior."); // Log fade out
+ setTimeout(() => {
+ console.log("startVirtualTour: Exterior faded, attempting to show panorama container."); // Log after fade out delay
+ exteriorContainer.style.display = 'none';
+ panoContainer.style.display = 'block'; // Show panorama container
+ navigationBar.style.display = 'block'; // Show navigation
+ console.log("startVirtualTour: Panorama container and navigation bar set to display: block."); // Log display change
+ // Set initial panorama state (hidden)
+ panorama.style.opacity = '0';
+ panorama.style.transform = 'scale(1.2)'; // Start slightly zoomed for entry effect
+ console.log("startVirtualTour: Setting initial panorama styles for animation."); // Log initial styles
+ // Load the first view (Spoliarium Hall)
+ console.log("startVirtualTour: Loading initial panorama 'spol.jpg'."); // Log initial load attempt
+ loadPanoramaInternal('spol.jpg', getHotspotsSpolariumHall());
+ updateActiveNavButton('spol.jpg');
+ // Short delay before fade-in and zoom-in animation
+ setTimeout(() => {
+ console.log("startVirtualTour: Starting panorama fade-in and zoom-in animation."); // Log animation start
+ panorama.style.opacity = '1';
+ panorama.style.transform = 'scale(1)';
+ isTransitioning = false; // End transition after animation
+ console.log("startVirtualTour: Animation complete, transition ended."); // Log animation end
+ }, 50); // Small delay to allow initial styles to apply
+ }, 1000); // Wait for exterior fade-out
+ }
+ /**
+ * @function loadPanoramaInternal
+ * @description Loads the specified panorama image and its hotspots WITHOUT adding to history or triggering animations itself.
+ * @param {string} imageName - The filename of the panorama image.
+ * @param {Array} hotspots - An array of hotspot objects for this view.
+ */
+ function loadPanoramaInternal(imageName, hotspots) {
+ console.log(`loadPanoramaInternal called for: ${imageName}`); // Log function call
+ panorama.src = imageName; // Set the image source
+ panorama.onload = () => { // Add onload listener
+    console.log(`Panorama image loaded successfully: ${imageName}`); // Log successful load
+    // Ensure this is only done once per load
+    panorama.onload = null;
+ };
+ panorama.onerror = () => { // Add onerror listener
+    console.error(`Failed to load panorama image: ${imageName}`); // Log load failure
+    // Ensure this is only done once per load
+    panorama.onerror = null;
+     // Optionally, handle error display or fallback here
+     panorama.style.display = 'none'; // Hide broken image
+     // Maybe show an error message to the user
+ };
+ // Ensure hotspots is an array before assigning
+ currentHotspots = Array.isArray(hotspots) ? hotspots : [];
+ console.log(`Loaded ${currentHotspots.length} hotspots for ${imageName}`); // Log hotspot count
+ renderHotspots(); // Display the hotspots (initially hidden if animating)
+ closeInfoPanel(); // Ensure info panel is closed when changing views
+ console.log(`loadPanoramaInternal finished for: ${imageName}`); // Log function end
+ }
+ /**
+ * @function handleNavClick
+ * @description Handles clicks on navigation buttons and hotspots, initiating transitions.
+ * @param {string} imageName - The filename of the new panorama image to load.
+ * @param {Function | Array} hotspotsSource - Function or array for the target hotspots.
+ * @param {string} [transitionType='fade'] - Type of transition ('fade', 'slideLeft', 'slideRight').
+ */
+ function handleNavClick(imageName, hotspotsSource, transitionType = 'fade') {
+ console.log(`handleNavClick called for: ${imageName} with transition: ${transitionType}`); // Log click
+ if (isTransitioning) {
+ console.log("handleNavClick: Transition already in progress, returning."); // Log if transitioning
+ return; // Prevent overlapping transitions
+ }
+ const currentImageSrc = panorama.getAttribute('src');
+ const currentImageFilename = currentImageSrc ? currentImageSrc.substring(currentImageSrc.lastIndexOf('/') + 1) : null;
+ // Don't transition if clicking the current view's button
+ if (currentImageFilename === imageName) {
+ console.log(`handleNavClick: Already on view ${imageName}, returning.`); // Log if already on view
+ return;
+ }
+ isTransitioning = true;
+ hotspotsContainer.classList.add('hidden'); // Hide hotspots during transition
+ console.log("handleNavClick: Hiding hotspots."); // Log hotspot hide
+ // --- Determine Exit Animation ---
+ let exitClass = 'pano-exit-fade';
+ if (transitionType === 'slideLeft') exitClass = 'pano-exit-slide-left';
+ if (transitionType === 'slideRight') exitClass = 'pano-exit-slide-right';
+ // --- Determine Enter Animation ---
+ let enterClass = 'pano-enter-fade';
+ // Reverse slide direction for entry
+ if (transitionType === 'slideLeft') enterClass = 'pano-enter-slide-right';
+ if (transitionType === 'slideRight') enterClass = 'pano-enter-slide-left';
+ console.log(`handleNavClick: Applying exit animation class: ${exitClass}`); // Log exit anim
+ // 1. Apply Exit Animation
+ panorama.classList.add(exitClass);
+ // 2. Wait for exit animation, then load new content
+ setTimeout(() => {
+ console.log("handleNavClick: Exit animation complete, processing new view."); // Log after exit anim delay
+ // --- History Management ---
+ if (currentImageFilename && currentImageFilename !== imageName) {
+ const currentHotspotsFunction = getHotspotsForPanorama(currentImageFilename);
+ if (currentHotspotsFunction) {
+ try {
+ const currentHotspotsData = currentHotspotsFunction(); // Execute to get the array
+ if (Array.isArray(currentHotspotsData)) {
+ historyStack.push({ imageName: currentImageFilename, hotspots: currentHotspotsData });
+ console.log('Pushed to history:', currentImageFilename);
+ console.log('History stack:', historyStack.map(h => h.imageName));
+ } else { console.warn(`Hotspot func ${currentImageFilename} did not return array for history.`); }
+ } catch (e) { console.error(`Error exec hotspot func ${currentImageFilename} for history:`, e); }
+ } else { console.warn(`No hotspot func ${currentImageFilename} for history.`); }
+ }
+ // --- Resolve Hotspots ---
+ let resolvedHotspots;
+ if (typeof hotspotsSource === 'function') {
+ try {
+ resolvedHotspots = hotspotsSource(); // Execute function to get array
+ if (!Array.isArray(resolvedHotspots)) { console.error("Hotspot func did not return array", imageName); resolvedHotspots = []; }
+ } catch (e) { console.error("Error calling hotspot func", imageName, e); resolvedHotspots = []; }
+ } else if (Array.isArray(hotspotsSource)) {
+ resolvedHotspots = hotspotsSource; // Use array directly if provided (less likely with current setup)
+ } else {
+ console.error("Invalid hotspotsSource type", imageName);
+ resolvedHotspots = [];
+ }
+ // 3. Load New Image & Hotspots (Internal function)
+ console.log(`handleNavClick: Calling loadPanoramaInternal for ${imageName}`); // Log internal load
+ loadPanoramaInternal(imageName, resolvedHotspots); // Pass the resolved array
+ updateActiveNavButton(imageName); // Update the active button style
+ // 4. Prepare for Enter Animation (apply start state)
+ panorama.classList.remove(exitClass); // Remove exit class
+ panorama.classList.add(enterClass); // Add enter class (starts hidden/off-screen)
+ console.log(`handleNavClick: Applying enter animation class: ${enterClass}`); // Log enter anim prepare
+ // 5. Force Reflow (important for CSS transition)
+ void panorama.offsetWidth;
+ // 6. Apply Enter Animation End State (fade in / slide in)
+ panorama.classList.remove(enterClass); // Remove enter class to trigger transition to default state (visible, centered)
+ hotspotsContainer.classList.remove('hidden'); // Show hotspots again
+ console.log("handleNavClick: Starting enter animation and showing hotspots."); // Log enter anim start
+ // 7. End Transition Lock
+ setTimeout(() => {
+ isTransitioning = false;
+ console.log("handleNavClick: Transition animation complete, transition ended."); // Log transition end
+ }, TRANSITION_DURATION); // Unlock after enter animation finishes
+ }, TRANSITION_DURATION); // Wait for exit animation
+ }
+ /**
+ * @function goBack
+ * @description Loads the previous view from the history stack with animation.
+ */
+ function goBack() {
+ console.log("goBack called."); // Log goBack
+ if (isTransitioning || historyStack.length === 0) {
+ console.log("goBack: Cannot go back (transitioning or history empty)."); // Log why back fails
+ return; // Prevent overlap or back on empty history
+ }
+ isTransitioning = true;
+ hotspotsContainer.classList.add('hidden'); // Hide hotspots
+ console.log("goBack: Hiding hotspots for back transition."); // Log hotspot hide
+ const previousView = historyStack.pop(); // Get the last item
+ if (previousView && previousView.imageName && Array.isArray(previousView.hotspots)) {
+ console.log(`goBack: Loading previous view: ${previousView.imageName}`); // Log previous view
+ // Apply exit animation (e.g., reverse slide/fade - let's use fade for simplicity)
+ panorama.classList.add('pano-exit-fade'); // Or a specific 'back' animation
+ console.log("goBack: Applying exit fade."); // Log exit fade
+ setTimeout(() => {
+ console.log("goBack: Exit fade complete, loading previous view content."); // Log after exit fade delay
+ // Load previous view content - Pass the actual hotspot array from history
+ loadPanoramaInternal(previousView.imageName, previousView.hotspots);
+ updateActiveNavButton(previousView.imageName);
+ console.log(`Went back to: ${previousView.imageName}`);
+ console.log('History stack after back:', historyStack.map(h => h.imageName));
+ // Prepare and apply enter animation
+ panorama.classList.remove('pano-exit-fade');
+ panorama.classList.add('pano-enter-fade'); // Start hidden
+ console.log("goBack: Applying enter fade prepare."); // Log enter fade prepare
+ void panorama.offsetWidth; // Reflow
+ panorama.classList.remove('pano-enter-fade'); // Fade in
+ hotspotsContainer.classList.remove('hidden'); // Show hotspots
+ console.log("goBack: Starting enter fade and showing hotspots."); // Log enter fade start
+ // Unlock transition
+ setTimeout(() => {
+ isTransitioning = false;
+ console.log("goBack: Back transition complete."); // Log transition end
+ }, TRANSITION_DURATION);
+ }, TRANSITION_DURATION); // Wait for exit animation
+ } else {
+ console.error("goBack: Invalid view data popped from history stack.", previousView); // Log invalid history data
+ isTransitioning = false; // Unlock if data was bad
+ hotspotsContainer.classList.remove('hidden');
+ // Push back if invalid? Be careful.
+ // if (previousView) historyStack.push(previousView);
+ }
+ }
+ /**
+ * @function renderHotspots
+ * @description Clears existing hotspots and renders the hotspots for the current view.
+ */
+ function renderHotspots() {
+ console.log("renderHotspots called."); // Log function call
+ hotspotsContainer.innerHTML = ''; // Clear previous hotspots
+ if (!Array.isArray(currentHotspots)) {
+ console.error("renderHotspots: currentHotspots is not an array:", currentHotspots); // Log error
+ return;
+ }
+ currentHotspots.forEach(hotspotData => {
+ if (!hotspotData || typeof hotspotData !== 'object') {
+ console.warn("renderHotspots: Skipping invalid hotspot data item:", hotspotData); // Log warning
+ return;
+ }
+ const hotspot = document.createElement('div');
+ hotspot.classList.add('hotspot');
+ // Set position, check for valid numbers
+ if (typeof hotspotData.x === 'number' && typeof hotspotData.y === 'number') {
+ hotspot.style.left = `${hotspotData.x}%`;
+ hotspot.style.top = `${hotspotData.y}%`;
+ } else { console.warn("renderHotspots: Invalid coords:", hotspotData); } // Log invalid coords
+ // Set type class
+ if (hotspotData.type) { hotspot.classList.add(hotspotData.type); }
+ else { console.warn("renderHotspots: Hotspot missing 'type':", hotspotData); } // Log missing type
+ // Set icon/arrow based on type and label
+ if (hotspotData.type === 'info') { hotspot.textContent = '!'; }
+ else if (hotspotData.type === 'nav') {
+ const labelLower = hotspotData.label?.toLowerCase() || '';
+ if (labelLower.includes('left')) { hotspot.innerHTML = '&#8592;'; } // Left arrow
+ else if (labelLower.includes('back') || labelLower.includes('down') || labelLower.includes('gallery 3') || labelLower.includes('gallery 6') || labelLower.includes('gallery 8') || labelLower.includes('gallery 12') || labelLower.includes('gallery 16')) { hotspot.innerHTML = '&#8595;'; } // Back/Down arrow
+ else if (labelLower.includes('front') || labelLower.includes('up') || labelLower.includes('spoliarium') || labelLower.includes('senate')) { hotspot.innerHTML = '&#8593;'; } // Forward/Up arrow
+ else if (labelLower.includes('right')) { hotspot.innerHTML = '&#8594;'; } // Right arrow
+ else { hotspot.innerHTML = '&#10140;'; } // Default arrow (like a forward arrow)
+ }
+ // Add label if present
+ if (hotspotData.label) {
+ const label = document.createElement('div');
+ label.classList.add('hotspot-label');
+ label.textContent = hotspotData.label;
+ hotspot.appendChild(label);
+ }
+ // Add click event listener for navigation/info
+ hotspot.addEventListener('click', (event) => {
+ event.stopPropagation();
+ if (isTransitioning) return; // Don't allow clicks during transition
+ if (hotspotData.type === 'info') {
+ if (hotspotData.info) { showInfo(hotspotData.info); }
+ else { console.warn("Info hotspot no data:", hotspotData); }
+ } else if (hotspotData.type === 'nav' && hotspotData.targetPanorama) {
+ const targetHotspotsFunction = getHotspotsForPanorama(hotspotData.targetPanorama);
+ if (targetHotspotsFunction) {
+ // Determine transition type based on label
+ let transition = 'fade'; // Default transition
+ const labelLower = hotspotData.label?.toLowerCase() || '';
+ if (labelLower.includes('left')) transition = 'slideLeft';
+ if (labelLower.includes('right')) transition = 'slideRight';
+ // Pass the FUNCTION reference, not the array
+ handleNavClick(hotspotData.targetPanorama, targetHotspotsFunction, transition);
+ } else {
+ console.error(`Failed hotspot func target: ${hotspotData.targetPanorama}`);
+ }
+ }
+ });
+ hotspotsContainer.appendChild(hotspot);
+ });
+ console.log("renderHotspots finished."); // Log function end
+ }
+ /**
+ * @function showInfo
+ * @description Displays the info panel with details from the clicked hotspot.
+ * @param {object} data - The info object associated with the hotspot.
+ */
+ function showInfo(data) {
+ console.log("showInfo called with data:", data); // Log function call and data
+ if (!data || typeof data !== 'object') {
+ console.error("showInfo called with invalid data:", data); // Log error
+ return;
+ }
+ infoTitleElement.textContent = data.title || 'Information';
+ infoDescriptionElement.textContent = data.description || 'No description available.';
+
+ // Hide all media containers first
+ infoImageElement.style.display = 'none';
+ infoImageElement.src = ''; // Clear previous single image
+ infoImagesMultiContainer.style.display = 'none';
+ infoImagesMultiContainer.innerHTML = ''; // Clear previous multiple images
+ infoPdfEmbed.style.display = 'none';
+ infoPdfEmbed.src = ''; // Clear previous PDF
+ console.log("showInfo: Hid all media containers."); // Log hiding containers
+
+ // Handle different media types
+ if (data.image && typeof data.image === 'string' && data.image.toLowerCase().endsWith('.pdf')) {
+    // Handle PDF - display in iframe
+    console.log("showInfo: Handling PDF:", data.image); // Log PDF handling
+    infoPdfEmbed.src = data.image;
+    infoPdfEmbed.style.display = 'block';
+ } else if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+    // Handle multiple images
+    console.log("showInfo: Handling multiple images:", data.images); // Log multiple images handling
+    data.images.forEach(imageSrc => {
+        if (typeof imageSrc === 'string' && imageSrc.trim() !== '') {
+            const img = document.createElement('img');
+            img.src = imageSrc;
+            img.alt = data.title || "Artwork Image";
+            img.onerror = function() { this.style.display='none'; console.warn('Failed to load image:', imageSrc); }; // Hide and log error
+            infoImagesMultiContainer.appendChild(img);
+        } else { console.warn("showInfo: Invalid image src array:", imageSrc); } // Log invalid src in array
+    });
+    if (infoImagesMultiContainer.childElementCount > 0) {
+        infoImagesMultiContainer.style.display = 'flex';
+    }
+ }
+ // Handle single image (if not a PDF and not multiple images)
+ else if (data.image && typeof data.image === 'string' && data.image.trim() !== '') {
+ console.log("showInfo: Handling single image:", data.image); // Log single image handling
+ infoImageElement.src = data.image;
+ infoImageElement.onerror = function() { this.style.display='none'; console.warn('Failed to load single image:', this.src); }; // Hide and log error
+ infoImageElement.style.display = 'block'; // Show single image
+ } else {
+ console.log("showInfo: No image or PDF to display."); // Log if no media found
+ }
+
+ // Ensure description is always visible unless specifically hidden elsewhere
+ infoDescriptionElement.style.display = 'block';
+
+
+ infoPanel.style.display = 'block'; // Show the panel
+ console.log("showInfo: Info panel set to display: block."); // Log panel display
+ }
+ /**
+ * @function closeInfoPanel
+ * @description Hides the info panel.
+ */
+ function closeInfoPanel() {
+ console.log("closeInfoPanel called."); // Log function call
+ infoPanel.style.display = 'none';
+ }
+ /**
+ * @function getHotspotsForPanorama
+ * @description Returns the *function* responsible for generating hotspots for a given panorama filename.
+ */
+ function getHotspotsForPanorama(panoramaName) {
+ console.log(`getHotspotsForPanorama called for: ${panoramaName}`); // Log function call
+ if (typeof panoramaName !== 'string') { console.error("Invalid panoramaName:", panoramaName); return null; }
+ const filename = panoramaName.substring(panoramaName.lastIndexOf('/') + 1);
+ // Map filenames to their corresponding hotspot generator functions
+ switch (filename) {
+ // Existing Galleries
+ case 'spol.jpg': return getHotspotsSpolariumHall;
+ case 'old.jpg': return getHotspotsOldSenate;
+ case 'gal3.jpg': return getHotspotsGallery3Front;
+ case 'gal3l.jpg': return getHotspotsGallery3Left;
+ case 'gal3r.jpg': return getHotspotsGallery3Right;
+ // New Galleries
+ case 'gal6.jpg': return getHotspotsGallery6;
+ case 'gal8.jpg': return getHotspotsGallery8;
+ case 'gal12.jpg': return getHotspotsGallery12;
+ case 'gal16.jpg': return getHotspotsGallery16;
+ case 'gal22.jpg': return getHotspotsGallery22;
+ default:
+ console.warn(`No hotspot func for: ${filename}`); // Log if no hotspot func found
+ return () => []; // Return function returning empty array
+ }
+ }
+ /**
+ * @function updateActiveNavButton
+ * @description Highlights the navigation button corresponding to the current view.
+ */
+ function updateActiveNavButton(currentViewName) {
+ console.log(`updateActiveNavButton called for: ${currentViewName}`); // Log function call
+ // Ensure navButtons list is up-to-date after potential dynamic additions
+ const currentNavButtons = navigationBar.querySelectorAll('button[data-view]');
+ currentNavButtons.forEach(button => {
+ if (button.getAttribute('data-view') === currentViewName) {
+ button.classList.add('active-nav');
+ console.log(`Activated nav button for: ${currentViewName}`); // Log button activation
+ } else {
+ button.classList.remove('active-nav');
+ }
+ });
+ }
+ // --- Hotspot Data Definitions ---
+ // --- Existing Galleries ---
+ function getHotspotsSpolariumHall() {
+ return [
+ { type: 'info', x: 48, y: 50, label: 'Artwork Info', info: { title: 'Spoliarium', description: 'Juan Luna\'s masterpiece...', image: 'spoldes.jpg' } }, // Updated label
+ { type: 'nav', x: 85, y: 55, label: 'To Old Senate Hall', targetPanorama: 'old.jpg' }
+ ];
+ }
+ function getHotspotsOldSenate() {
+ return [
+ { type: 'nav', x: 50, y: 85, label: 'Back to Spoliarium Hall', targetPanorama: 'spol.jpg' },
+ { type: 'nav', x: 80, y: 50, label: 'To Gallery 3 (Front)', targetPanorama: 'gal3.jpg' },
+ ];
+ }
+ // UPDATED: Added link to Gallery 6
+ function getHotspotsGallery3Front() {
+ return [
+ { type: 'nav', x: 15, y: 55, label: 'View Left Side', targetPanorama: 'gal3l.jpg' },
+ { type: 'nav', x: 50, y: 85, label: 'Back to Old Senate Hall', targetPanorama: 'old.jpg' },
+ { type: 'nav', x: 85, y: 55, label: 'View Right Side', targetPanorama: 'gal3r.jpg' },
+ { type: 'info', x: 65, y: 45, label: 'Artwork Info', info: { title: 'Artwork Title (Front)', description: 'Details...', image: 'gal3_info1.jpg' } }, // Updated label
+ // Link to Gallery 6 (Estimated position - adjust as needed)
+ { type: 'nav', x: 95, y: 50, label: 'To Gallery 6', targetPanorama: 'gal6.jpg' },
+ ];
+ }
+ function getHotspotsGallery3Left() {
+ return [
+ { type: 'nav', x: 85, y: 55, label: 'View Right Side', targetPanorama: 'gal3r.jpg' },
+ { type: 'nav', x: 50, y: 85, label: 'Back to Gallery 3 Front', targetPanorama: 'gal3.jpg' },
+ { type: 'info', x: 15, y: 50, label: 'Artwork Info', info: { title: 'San Buenaventura, Obispo y Doctor de la Iglesia', description: 'Details...', image: 'at1.jpg' } }, // Updated label
+ { type: 'info', x: 40, y: 35, label: 'Artwork Info', info: { title: 'Santa Barbara, Virgen y Martir & San emigdo, Obispo y Martir', description: 'Info...', images: ['at2.jpg', 'at2.2.jpg'] } }, // Updated label
+ { type: 'info', x: 65, y: 50, label: 'Artwork Info', info: { title: 'Santo Domingo de Guzman', description: 'Details...', image: 'at3.jpg' } }, // Updated label
+ ];
+ }
+ function getHotspotsGallery3Right() {
+ return [
+ { type: 'nav', x: 15, y: 55, label: 'View Left Side', targetPanorama: 'gal3l.jpg' },
+ { type: 'nav', x: 50, y: 85, label: 'Back to Gallery 3 Front', targetPanorama: 'gal3.jpg' },
+ { type: 'info', x: 85, y: 50, label: 'Artwork Info', info: { title: 'San Gregorio Magno, Papa y Doctor de la Iglesia', description: 'Info...', image: 'atr1.jpg' } }, // Updated label
+ { type: 'info', x: 40, y: 48, label: 'Artwork Info', info: { title: 'San Juan Nepomuceno', description: 'Placeholder...', image: 'at2r.jpg' } }, // Updated label
+ { type: 'info', x: 20, y: 60, label: 'Artwork Info', info: { title: 'Escenas de la ida de San Noberto de Kanten', description: 'Placeholder...', image: 'at3r.jpg' } } // Updated label
+ ];
+ }
+ // --- New Gallery Hotspot Definitions ---
+ /**
+ * @function getHotspotsGallery6
+ * @description Defines hotspots for Gallery 6 (Luna & Hidalgo Hall).
+ * @returns {Array} Array of hotspot objects.
+ */
+ function getHotspotsGallery6() {
+ // Coordinates are estimates - ADJUST AS NEEDED
+ return [
+ // Navigation
+ { type: 'nav', x: 80, y: 50, label: 'To Gallery 8', targetPanorama: 'gal8.jpg' }, // Assumed forward
+ { type: 'nav', x: 10, y: 50, label: 'Back to Gallery 3', targetPanorama: 'gal3.jpg' }, // Assumed back
+ // Info Hotspots (Placeholders - REPLACE content)
+ { type: 'info', x: 50, y: 40, label: 'Artwork Info', info: { title: 'FELIX RESURRECCION HIDALGO', description: 'FELIX RESURRECCION HIDALGO', image: 'gal62.jpg' } }, // Updated label
+ { type: 'info', x: 25, y: 55, label: 'Artwork Info', info: { title: 'OBJECT INFO', description: '', image: 'gal61.jpg' } }, // Updated label
+ { type: 'info', x: 75, y: 55, label: 'Artwork Info', info: { title: 'Gallery VI', description: '', image: 'gal63.jpg' } }, // Updated label
+ ];
+ }
+ /**
+ * @function getHotspotsGallery8
+ * @description Defines hotspots for Gallery 8 (Mga Handog sa Bayan Hall).
+ * @returns {Array} Array of hotspot objects.
+ */
+ function getHotspotsGallery8() {
+ // Coordinates are estimates based on image_8719b0.jpg - ADJUST AS NEEDED
+ return [
+ // Navigation
+ { type: 'nav', x: 85, y: 55, label: 'To Gallery 12', targetPanorama: 'gal12.jpg' }, // Assumed forward
+ { type: 'nav', x: 15, y: 55, label: 'Back to Gallery 6', targetPanorama: 'gal6.jpg' }, // Assumed back (matches visible arrow)
+ // Info Hotspots (Placeholders - REPLACE content)
+ { type: 'info', x: 30, y: 45, label: 'Artwork Info', info: { title: 'Gallery 8 - Info 1', description: 'Placeholder...', image: 'gal81.jpg' } }, // Updated label
+ { type: 'info', x: 55, y: 40, label: 'Artwork Info', info: { title: 'Gallery 8 - Center Painting', description: 'Placeholder for The Burning of Manila?', image: 'gal82.jpg' } }, // Updated label
+ { type: 'info', x: 80, y: 48, label: 'Artwork Info', info: { title: 'Gallery 8 - Info 3', description: 'Placeholder...', images: ['gal83.jpg', 'gal84.jpg', 'gal85.jpg'] } }, // Updated label
+ ];
+ }
+ /**
+ * @function getHotspotsGallery12
+ * @description Defines hotspots for Gallery 12 (Silahis ng Sining Hall).
+ * @returns {Array} Array of hotspot objects.
+ */
+ function getHotspotsGallery12() {
+ // Coordinates are estimates based on image_86c2fd.jpg - ADJUST AS NEEDED
+ return [
+ // Navigation
+ { type: 'nav', x: 90, y: 50, label: 'To Gallery 16', targetPanorama: 'gal16.jpg' }, // Assumed forward
+ { type: 'nav', x: 10, y: 50, label: 'Back to Gallery 8', targetPanorama: 'gal8.jpg' }, // Assumed back
+ // Info Hotspot (Placeholder - REPLACE content)
+ { type: 'info', x: 50, y: 60, label: 'Artwork Info', info: { title: 'Gallery 12 - Sculpture Info', description: 'Placeholder description for sculpture.', image: 'gal121.jpg' } }, // Updated label
+ ];
+ }
+ /**
+ * @function getHotspotsGallery16
+ * @description Defines hotspots for Gallery 16 (Progress of Medicine Hall).
+ * @returns {Array} Array of hotspot objects.
+ */
+ function getHotspotsGallery16() {
+ // Coordinates are estimates based on image_86c2d6.jpg - ADJUST AS NEEDED
+ return [
+ // Navigation
+ { type: 'nav', x: 95, y: 50, label: 'To Gallery 22', targetPanorama: 'gal22.jpg' }, // Assumed forward (far right)
+ { type: 'nav', x: 5, y: 85, label: 'Back to Gallery 12', targetPanorama: 'gal12.jpg' }, // Assumed back (bottom left)
+ // Info Hotspot (Placeholder - REPLACE content)
+ { type: 'info', x: 50, y: 45, label: 'Document Info', info: { title: 'Progress of Medicine Murals', description: 'Placeholder description about the four murals by Carlos V. Francisco.', image: 'gal16.pdf' } }, // Updated label, changed to Document Info
+ ];
+ }
+ /**
+ * @function getHotspotsGallery22
+ * @description Defines hotspots for Gallery 22.
+ * @returns {Array} Array of hotspot objects.
+ */
+ function getHotspotsGallery22() {
+ // Coordinates are estimates based on image_86bbf5.jpg - ADJUST AS NEEDED
+ return [
+ // Navigation
+ { type: 'nav', x: 50, y: 90, label: 'Back to Gallery 16', targetPanorama: 'gal16.jpg' }, // Assumed back (bottom center)
+ // Info Hotspots (Placeholders - REPLACE content)
+ { type: 'info', x: 80, y: 55, label: 'Artwork Info', info: { title: 'Gallery 22 - Right Sculpture', description: 'Placeholder description for the large wooden sculpture on the right.', image: 'gal222.jpg' } }, // Updated label
+ { type: 'info', x: 20, y: 50, label: 'Artwork Info', info: { title: 'Gallery 22 - Left Painting', description: 'Placeholder description for the large colorful painting on the left.', image: 'gal221.jpg' } }, // Updated label
+ { type: 'info', x: 55, y: 50, label: 'Artwork Info', info: { title: 'Gallery 22 - Center Wall', description: 'Placeholder description for items on the center back wall.', images: ['gal223.jpg', 'gal224.jpg', 'gal225.jpg', 'gal226.jpg'] } }, // Updated label
+ ];
+ }
+ // --- Initial Setup ---
+ // Added onload and onerror to the exterior image
+ const exteriorImageElement = document.getElementById('exterior-image');
+ exteriorImageElement.onload = () => {
+     console.log('Exterior image loaded successfully.');
+ };
+ exteriorImageElement.onerror = () => {
+     console.error('Failed to load exterior image.');
+     // You might want to hide the button or show an error message here too
+     // Or maybe just set a default background if the image fails
+     exteriorImageElement.style.display = 'none'; // Hide the broken image element
+ };
+
+ panorama.addEventListener('error', function() {
+ console.error(`Failed to load panorama image: ${this.src}`);
+ this.style.display = 'none'; // Hide broken panorama
+ });
+ </script>
+ </body>
+ </html>
